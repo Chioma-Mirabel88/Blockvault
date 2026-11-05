@@ -320,3 +320,55 @@ button {
   }
 }
 
+
+
+/* Public read-only preview */
+.preview-status {
+  padding: 10px 15px;
+  border: 1px solid #80652b;
+  background: #302817;
+  color: #f2ca72;
+  border-radius: 30px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.preview-notice {
+  padding: 18px 22px;
+  margin-bottom: 24px;
+  border: 1px solid #80652b;
+  border-radius: 10px;
+  background: #302817;
+  color: #f2ca72;
+}
+
+.preview-notice strong {
+  font-size: 12px;
+  letter-spacing: 1px;
+}
+
+.preview-notice p {
+  margin: 8px 0 0;
+  color: #e8d7ad;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.preview-footnote,
+.preview-footer {
+  color: #91a2b9;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.preview-footer {
+  margin-top: 24px;
+  text-align: center;
+}
+
+@media (max-width: 760px) {
+  .preview-status {
+    align-self: flex-start;
+  }
+}

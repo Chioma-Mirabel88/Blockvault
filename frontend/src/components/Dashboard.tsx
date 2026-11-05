@@ -1,13 +1,15 @@
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { formatEther } from 'ethers'
 import {
   connectWallet,
+  getLocalAccounts,
   getWalletDetails,
   getWriteContract,
   depositEth,
   withdrawEth,
   getWalletTransactions,
+  getWalletAnalytics,
 } from '../services/blockchain'
 
 type DashboardTab = 'overview' | 'assets' | 'transactions' | 'analytics'
@@ -34,6 +36,8 @@ function shortenAddress(address: string) {
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<DashboardTab>('overview')
   const [walletAddress, setWalletAddress] = useState('')
+  const [localAccounts, setLocalAccounts] = useState<string[]>([])
+  const [selectedAccount, setSelectedAccount] = useState("")
   const [walletDetails, setWalletDetails] = useState<WalletDetails | null>(null)
   const [connecting, setConnecting] = useState(false)
   const [creatingWallet, setCreatingWallet] = useState(false)
@@ -44,6 +48,32 @@ export default function Dashboard() {
   const [processingTransaction, setProcessingTransaction] = useState(false)
   const [transactions, setTransactions] = useState<WalletTransaction[]>([])
   const [loadingTransactions, setLoadingTransactions] = useState(false)
+  const [analytics, setAnalytics] = useState<{
+    totalDeposits: bigint
+    totalWithdrawals: bigint
+    depositCount: number
+    withdrawalCount: number
+  } | null>(null)
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false)
+
+  useEffect(() => {
+    let mounted = true
+
+    getLocalAccounts()
+      .then((accounts) => {
+        if (mounted) {
+          setLocalAccounts(accounts)
+          if (accounts.length > 0) setSelectedAccount(accounts[0])
+        }
+      })
+      .catch(() => {
+        if (mounted) setError("Unable to load local test accounts.")
+      })
+
+    return () => {
+      mounted = false
+    }
+  }, [])
 
   async function refreshWalletDetails(address: string) {
     const details = await getWalletDetails(address)
@@ -56,7 +86,7 @@ export default function Dashboard() {
     setSuccess('')
 
     try {
-      const wallet = await connectWallet()
+      const wallet = await connectWallet(selectedAccount)
       setWalletAddress(wallet.address)
       await refreshWalletDetails(wallet.address)
     } catch (err) {
@@ -79,7 +109,7 @@ export default function Dashboard() {
     setSuccess('')
 
     try {
-      await depositEth(depositAmount)
+      await depositEth(depositAmount, walletAddress)
       await refreshWalletDetails(walletAddress)
       setDepositAmount('')
       setSuccess('ETH deposit completed successfully.')
@@ -101,7 +131,7 @@ export default function Dashboard() {
     setSuccess('')
 
     try {
-      await withdrawEth(withdrawAmount)
+      await withdrawEth(withdrawAmount, walletAddress)
       await refreshWalletDetails(walletAddress)
       setWithdrawAmount('')
       setSuccess('ETH withdrawal completed successfully.')
@@ -132,13 +162,32 @@ export default function Dashboard() {
     }
   }
 
+  async function loadAnalytics() {
+    if (!walletAddress) return
+
+    setLoadingAnalytics(true)
+    setError("")
+
+    try {
+      const result = await getWalletAnalytics(
+        walletAddress,
+        "0x0000000000000000000000000000000000000000"
+      )
+      setAnalytics(result)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load analytics.")
+    } finally {
+      setLoadingAnalytics(false)
+    }
+  }
+
   async function handleCreateWallet() {
     setCreatingWallet(true)
     setError('')
     setSuccess('')
 
     try {
-      const contract = await getWriteContract()
+      const contract = await getWriteContract(walletAddress)
       const transaction = await contract.createWallet()
 
       setSuccess('Wallet creation transaction submitted. Waiting for confirmation...')
@@ -180,6 +229,7 @@ export default function Dashboard() {
                 const tab = item.id as DashboardTab
                 setActiveTab(tab)
                 if (tab === 'transactions') void loadTransactions()
+                if (tab === 'analytics') void loadAnalytics()
               }}
             >
               {item.label}
@@ -201,6 +251,25 @@ export default function Dashboard() {
           </div>
 
           <div className="wallet-controls">
+            <select
+              aria-label="Select local test account"
+              value={selectedAccount}
+              onChange={(event) => {
+                setSelectedAccount(event.target.value)
+                setWalletAddress("")
+                setWalletDetails(null)
+                setTransactions([])
+                setError("")
+                setSuccess("")
+              }}
+              disabled={connecting || processingTransaction}
+            >
+              {localAccounts.map((account, index) => (
+                <option key={account} value={account}>
+                  Test Account {index + 1} - {shortenAddress(account)}
+                </option>
+              ))}
+            </select>
             <div className="network-status">
               <span className="status-dot" />
               Hardhat Local
@@ -334,7 +403,24 @@ export default function Dashboard() {
           {activeTab === 'assets' && (
             <div>
               <h2>My Assets</h2>
-              <p>Your ETH and supported token balances will appear here.</p>
+              {!walletAddress ? (
+                <p>Connect an account to view its assets.</p>
+              ) : !walletDetails?.exists ? (
+                <p>This account has not created a Blockvault wallet yet.</p>
+              ) : (
+                <div className="wallet-summary">
+                  <div className="balance-card">
+                    <span>Ethereum</span>
+                    <h3>{formatEther(walletDetails.balance)} ETH</h3>
+                    <p>Blockvault wallet balance</p>
+                  </div>
+                  <div className="balance-card">
+                    <span>ERC-20 Tokens</span>
+                    <h3>No token configured</h3>
+                    <p>Token balances will appear when a test token is deployed and approved.</p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -372,7 +458,34 @@ export default function Dashboard() {
           {activeTab === 'analytics' && (
             <div>
               <h2>Wallet Analytics</h2>
-              <p>Your wallet activity and transaction summaries will appear here.</p>
+              {!walletAddress ? (
+                <p>Connect an account to view its analytics.</p>
+              ) : !walletDetails?.exists ? (
+                <p>Create a Blockvault wallet to begin recording analytics.</p>
+              ) : loadingAnalytics ? (
+                <p>Loading wallet analytics...</p>
+              ) : analytics ? (
+                <div className="wallet-summary">
+                  <div className="balance-card">
+                    <span>Total ETH Deposited</span>
+                    <h3>{formatEther(analytics.totalDeposits)} ETH</h3>
+                  </div>
+                  <div className="balance-card">
+                    <span>Total ETH Withdrawn</span>
+                    <h3>{formatEther(analytics.totalWithdrawals)} ETH</h3>
+                  </div>
+                  <div className="balance-card">
+                    <span>Deposit Transactions</span>
+                    <h3>{analytics.depositCount}</h3>
+                  </div>
+                  <div className="balance-card">
+                    <span>Withdrawal Transactions</span>
+                    <h3>{analytics.withdrawalCount}</h3>
+                  </div>
+                </div>
+              ) : (
+                <p>Analytics are not available yet.</p>
+              )}
             </div>
           )}
         </section>

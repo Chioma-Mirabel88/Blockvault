@@ -10,11 +10,6 @@ import {
 
 const ABI = contractArtifact.abi
 
-// Local Hardhat development account.
-// This account is for local testing only.
-const LOCAL_DEV_ACCOUNT =
-  '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'
-
 // Connect to the local Hardhat blockchain.
 const provider = new JsonRpcProvider(
   LOCAL_RPC_URL,
@@ -25,8 +20,14 @@ export function getReadProvider() {
   return provider
 }
 
-// Connect using an unlocked Hardhat development account.
-export async function connectWallet() {
+// Retrieve available local Hardhat test accounts.
+export async function getLocalAccounts() {
+  const accounts = await provider.listAccounts()
+  return accounts.map((account) => account.address)
+}
+
+// Connect using a selected unlocked Hardhat test account.
+export async function connectWallet(accountAddress: string) {
   const network = await provider.getNetwork()
 
   if (Number(network.chainId) !== LOCAL_CHAIN_ID) {
@@ -35,7 +36,7 @@ export async function connectWallet() {
     )
   }
 
-  const signer = await provider.getSigner(LOCAL_DEV_ACCOUNT)
+  const signer = await provider.getSigner(accountAddress)
   const address = await signer.getAddress()
 
   return { provider, signer, address }
@@ -47,8 +48,8 @@ export function getReadContract() {
 }
 
 // Transaction-enabled contract connection.
-export async function getWriteContract() {
-  const { signer } = await connectWallet()
+export async function getWriteContract(accountAddress: string) {
+  const { signer } = await connectWallet(accountAddress)
 
   return new Contract(CONTRACT_ADDRESS, ABI, signer)
 }
@@ -72,8 +73,8 @@ export async function getWalletDetails(address: string) {
 
 
 // Deposit simulated ETH into the user's Blockvault wallet.
-export async function depositEth(amount: string) {
-  const contract = await getWriteContract()
+export async function depositEth(amount: string, accountAddress: string) {
+  const contract = await getWriteContract(accountAddress)
 
   const transaction = await contract.deposit({
     value: parseEther(amount),
@@ -83,8 +84,8 @@ export async function depositEth(amount: string) {
 }
 
 // Withdraw simulated ETH from the user's Blockvault wallet.
-export async function withdrawEth(amount: string) {
-  const contract = await getWriteContract()
+export async function withdrawEth(amount: string, accountAddress: string) {
+  const contract = await getWriteContract(accountAddress)
 
   const transaction = await contract.withdraw(parseEther(amount))
 
@@ -111,4 +112,17 @@ export async function getWalletTransactions(address: string) {
     transactionType: transaction.transactionType,
     timestamp: Number(transaction.timestamp),
   }))
+}
+
+
+// Retrieve analytics for a user and asset from the Solidity contract.
+export async function getWalletAnalytics(user: string, asset: string) {
+  const contract = getReadContract()
+  const result = await contract.getWalletAnalytics(user, asset)
+  return {
+    totalDeposits: result[0] as bigint,
+    totalWithdrawals: result[1] as bigint,
+    depositCount: Number(result[2]),
+    withdrawalCount: Number(result[3]),
+  }
 }

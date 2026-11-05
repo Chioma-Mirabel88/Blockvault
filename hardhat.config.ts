@@ -23,11 +23,24 @@ export default defineConfig({
     hardhatMainnet: {
       type: "edr-simulated",
       chainType: "l1",
+      accounts: {
+        accountsBalance: "1000000000000000000000000",
+      },
     },
     hardhatOp: {
       type: "edr-simulated",
       chainType: "op",
     },
+
+    // ADD THE NEW NETWORK HERE
+    blockvaultLocal: {
+      type: "http",
+      chainType: "l1",
+      chainId: 31337,
+      url: "http://127.0.0.1:8545",
+      accounts: "remote",
+    },
+
     sepolia: {
       type: "http",
       chainType: "l1",

@@ -1,0 +1,10 @@
+export const CONTRACT_ADDRESS =
+  '0x5FbDB2315678afecb367f032d93F642f64180aa3'
+
+export const LOCAL_CHAIN_ID = 31337
+
+export const LOCAL_CHAIN_NAME = 'Hardhat Local'
+
+export const LOCAL_RPC_URL = 'http://127.0.0.1:8545'
+
+export const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'

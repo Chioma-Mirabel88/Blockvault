@@ -1,12 +1,23 @@
-
 :root {
-  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: #e8eef7;
-  background: #0b1220;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #e8edf6;
+  background: #080d18;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  --bv-bg: #080d18;
+  --bv-surface: #101827;
+  --bv-surface-raised: #151f30;
+  --bv-border: rgba(148, 163, 184, 0.13);
+  --bv-text: #e8edf6;
+  --bv-muted: #8996aa;
+  --bv-accent: #36d6c3;
+  --bv-accent-dark: #153e40;
+  --bv-blue: #5688ff;
+  --bv-success: #38d9a9;
+  --bv-danger: #ff7185;
 }
 
 * {
@@ -16,20 +27,31 @@
 html {
   min-width: 320px;
   min-height: 100%;
+  background: var(--bv-bg);
 }
 
 body {
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
+  background: var(--bv-bg);
+  color: var(--bv-text);
+}
+
+button,
+input,
+select {
+  font: inherit;
 }
 
 button {
-  font-family: inherit;
+  cursor: pointer;
 }
 
-button:focus-visible {
-  outline: 2px solid #40dbc8;
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--bv-accent);
   outline-offset: 3px;
 }
 
@@ -37,4 +59,3 @@ button:focus-visible {
   background: #245e59;
   color: #ffffff;
 }
-

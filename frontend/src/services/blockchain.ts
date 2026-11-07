@@ -1,12 +1,16 @@
 
-import { Contract, JsonRpcProvider, parseEther } from 'ethers'
+import { Contract, JsonRpcProvider, parseEther, parseUnits } from 'ethers'
 import contractArtifact from '../contracts/BlockvaultWallet.json'
 
 import {
   CONTRACT_ADDRESS,
+  TOKEN_ADDRESS,
+  TOKEN_DECIMALS,
   LOCAL_CHAIN_ID,
   LOCAL_RPC_URL,
 } from '../contracts/config'
+
+import tokenABI from '../contracts/MockERC20.abi.json'
 
 const ABI = contractArtifact.abi
 
@@ -125,4 +129,106 @@ export async function getWalletAnalytics(user: string, asset: string) {
     depositCount: Number(result[2]),
     withdrawalCount: Number(result[3]),
   }
+}
+
+
+/* ============================================
+   ERC-20 TOKEN OPERATIONS
+   ============================================ */
+
+// Read-only connection to the configured Learning Token.
+export function getReadTokenContract() {
+  if (!TOKEN_ADDRESS) {
+    throw new Error("Learning Token address is not configured.")
+  }
+
+  return new Contract(TOKEN_ADDRESS, tokenABI, provider)
+}
+
+// Retrieve token metadata.
+export async function getTokenDetails() {
+  const token = getReadTokenContract()
+
+  const [name, symbol, decimals] = await Promise.all([
+    token.name(),
+    token.symbol(),
+    token.decimals(),
+  ])
+
+  return {
+    address: TOKEN_ADDRESS,
+    name: name as string,
+    symbol: symbol as string,
+    decimals: Number(decimals),
+  }
+}
+
+// Retrieve a user's internal Blockvault token balance.
+export async function getWalletTokenBalance(address: string) {
+  if (!TOKEN_ADDRESS) {
+    throw new Error("Learning Token address is not configured.")
+  }
+
+  const contract = getReadContract()
+  return await contract.getWalletTokenBalance(address, TOKEN_ADDRESS) as bigint
+}
+
+// Check how many tokens the wallet contract is approved to spend.
+export async function getTokenAllowance(accountAddress: string) {
+  const token = getReadTokenContract()
+  return await token.allowance(
+    accountAddress,
+    CONTRACT_ADDRESS
+  ) as bigint
+}
+
+// Approve only the exact amount required for the deposit.
+export async function approveToken(
+  amount: string,
+  accountAddress: string
+) {
+  const { signer } = await connectWallet(accountAddress)
+  const token = new Contract(TOKEN_ADDRESS, tokenABI, signer)
+
+  const transaction = await token.approve(
+    CONTRACT_ADDRESS,
+    parseUnits(amount, TOKEN_DECIMALS)
+  )
+
+  return await transaction.wait()
+}
+
+// Deposit approved ERC-20 tokens into the Blockvault wallet.
+export async function depositToken(
+  amount: string,
+  accountAddress: string
+) {
+  const contract = await getWriteContract(accountAddress)
+
+  const transaction = await contract.depositToken(
+    TOKEN_ADDRESS,
+    parseUnits(amount, TOKEN_DECIMALS)
+  )
+
+  return await transaction.wait()
+}
+
+// Withdraw ERC-20 tokens from the Blockvault wallet.
+export async function withdrawToken(
+  amount: string,
+  accountAddress: string
+) {
+  const contract = await getWriteContract(accountAddress)
+
+  const transaction = await contract.withdrawToken(
+    TOKEN_ADDRESS,
+    parseUnits(amount, TOKEN_DECIMALS)
+  )
+
+  return await transaction.wait()
+}
+
+// Retrieve Learning Token analytics from the wallet contract.
+export async function getTokenAnalytics(user: string) {
+  return await getWalletAnalytics(user, TOKEN_ADDRESS)
 }
